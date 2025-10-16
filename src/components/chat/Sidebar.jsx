@@ -10,16 +10,11 @@ import { formatMessageTime } from '../../utils/formatters';
 import LoadingSpinner from '../common/LoadingSpinner';
 import CallModal from './CallModal';
 import VerifiedBadge from '../common/VerifiedBadge';
-// import { useCallStore } from '../../store/callStore';
-// import CallHistory from './CallHistory';
 
-const Sidebar = ({ onChatSelect }) => {  // ADD onChatSelect prop
+const Sidebar = ({ onChatSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [showCallModal, setShowCallModal] = useState(false);
+  // const [showCallModal, setShowCallModal] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 300);
-  // const [showCallHistory, setShowCallHistory] = useState(false);
-  // const { missedCallsCount, fetchMissedCallsCount, markCallsAsSeen } = useCallStore();
-  
   
   const { 
     conversations, 
@@ -46,27 +41,20 @@ const Sidebar = ({ onChatSelect }) => {  // ADD onChatSelect prop
   const handleChatClick = (user) => {
     setSelectedChat(user);
     if (onChatSelect) {
-      onChatSelect(); // Switch to chat view
+      onChatSelect(); // Notify parent to switch views (mobile)
     }
   };
 
   const displayList = searchQuery ? users : conversations;
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen hidden md:flex">
+    <div className="w-full md:w-80 bg-white dark:bg-gray-800 md:border-r border-gray-200 dark:border-gray-700 flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             DayTalk
           </h2>
-          {/* <button 
-            onClick={() => selectedChat && setShowCallModal(true)}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            disabled={!selectedChat}
-          >
-            <Phone size={20} className={selectedChat ? "text-gray-600 dark:text-gray-400" : "text-gray-400"} />
-          </button> */}
         </div>
 
         {/* Search */}
@@ -101,7 +89,7 @@ const Sidebar = ({ onChatSelect }) => {  // ADD onChatSelect prop
           displayList.map((item) => (
             <button
               key={item._id}
-              onClick={() => handleChatClick(item)} // UPDATED
+              onClick={() => handleChatClick(item)}
               className={`w-full p-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
                 selectedChat?._id === item._id
                   ? "bg-blue-50 dark:bg-gray-700"
@@ -161,9 +149,6 @@ const Sidebar = ({ onChatSelect }) => {  // ADD onChatSelect prop
           onClose={() => setShowCallModal(false)}
           callType="audio"
         />
-      )} */}
-      {/* {showCallHistory && (
-        <CallHistory onClose={() => setShowCallHistory(false)} />
       )} */}
     </div>
   );

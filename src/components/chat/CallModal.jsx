@@ -32,17 +32,12 @@ const CallModal = ({
   const callStartTimeRef = useRef(null);
   const isCleanedUpRef = useRef(false);
   const pendingOfferRef = useRef(incomingCallData?.offer || null);
-  
-  // ✅ Store the caller ID immediately to prevent it from being lost
   const callerIdRef = useRef(incomingCallData?.from || null);
 
   console.log('🎯 CallModal - Initial state:');
   console.log('   isIncoming:', isIncoming);
-  console.log('   incomingCallData:', incomingCallData);
-  console.log('   Caller ID:', incomingCallData?.from);
-  console.log('   Has offer in incomingCallData?', !!incomingCallData?.offer);
-  console.log('   pendingOfferRef initialized:', !!pendingOfferRef.current);
-  console.log('   callerIdRef initialized:', callerIdRef.current);
+  console.log('   callType:', callType);
+  console.log('   Has offer:', !!pendingOfferRef.current);
 
   // Start call duration timer when connected
   useEffect(() => {
@@ -63,29 +58,44 @@ const CallModal = ({
   // Initialize call and setup WebRTC
   useEffect(() => {
     console.log('🚀 CallModal mounted - initializing call');
-    console.log('Is incoming?', isIncoming);
-    console.log('Call type:', callType);
-    console.log('Receiver:', receiverUser.name);
+    console.log('   Call type:', callType);
     
     let mounted = true;
 
     const initializeCall = async () => {
       try {
-        // Get user media
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: callType === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
-        });
+        // ✅ FIX: Always request audio, request video only for video calls
+        const constraints = {
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+          video: callType === 'video' ? { 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 } 
+          } : false
+        };
 
-        if (!mounted) return;
+        console.log('🎤 Requesting media with constraints:', constraints);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+        if (!mounted) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
 
         localStreamRef.current = stream;
+        
+        // Log tracks for debugging
+        console.log('📹 Media tracks obtained:');
+        stream.getTracks().forEach(track => {
+          console.log(`   - ${track.kind}: ${track.label} (enabled: ${track.enabled})`);
+        });
         
         if (localVideoRef.current && callType === 'video') {
           localVideoRef.current.srcObject = stream;
         }
-
-        console.log('📹 Media stream acquired');
 
         // Create peer connection
         setupPeerConnection();
@@ -114,18 +124,28 @@ const CallModal = ({
       peerConnectionRef.current = new RTCPeerConnection(configuration);
       console.log('🔗 Peer connection created');
 
-      // Add local stream tracks
+      // ✅ FIX: Add tracks one by one with better logging
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => {
-          peerConnectionRef.current.addTrack(track, localStreamRef.current);
+          const sender = peerConnectionRef.current.addTrack(track, localStreamRef.current);
+          console.log(`➕ Added ${track.kind} track to peer connection`, sender);
         });
       }
 
       // Handle remote stream
       peerConnectionRef.current.ontrack = (event) => {
-        console.log('📺 Received remote stream');
+        console.log('📺 Received remote track:', event.track.kind);
+        console.log('   Track enabled:', event.track.enabled);
+        console.log('   Streams:', event.streams.length);
+        
         if (remoteVideoRef.current && mounted) {
           remoteVideoRef.current.srcObject = event.streams[0];
+          console.log('✅ Remote stream set to video element');
+          
+          // Log all tracks in remote stream
+          event.streams[0].getTracks().forEach(track => {
+            console.log(`   Remote ${track.kind}: ${track.label} (enabled: ${track.enabled})`);
+          });
         }
       };
 
@@ -134,7 +154,6 @@ const CallModal = ({
         if (event.candidate) {
           console.log('❄️ Generated ICE candidate');
           
-          // ✅ FIX: For incoming calls, send to caller (incomingCallData.from)
           const targetUserId = isIncoming ? incomingCallData.from : receiverUser._id;
           
           socketService.sendIceCandidate({
@@ -142,6 +161,8 @@ const CallModal = ({
             candidate: event.candidate,
             callId: callId || incomingCallData?.callId
           });
+        } else {
+          console.log('❄️ All ICE candidates generated');
         }
       };
 
@@ -151,6 +172,20 @@ const CallModal = ({
         
         if (peerConnectionRef.current.connectionState === 'connected') {
           setCallStatus('connected');
+          console.log('✅ Peer connection CONNECTED');
+          
+          // Log final track status
+          if (localStreamRef.current) {
+            console.log('Local tracks:');
+            localStreamRef.current.getTracks().forEach(track => {
+              console.log(`   ${track.kind}: enabled=${track.enabled}, muted=${track.muted}`);
+            });
+          }
+        } else if (peerConnectionRef.current.connectionState === 'failed') {
+          console.error('❌ Peer connection FAILED');
+          alert('Connection failed. Please try again.');
+          cleanup();
+          onClose();
         }
       };
 
@@ -163,13 +198,20 @@ const CallModal = ({
       try {
         console.log('📞 Creating offer...');
         
-        const offer = await peerConnectionRef.current.createOffer({
+        // ✅ FIX: Explicitly set offer options based on call type
+        const offerOptions = {
           offerToReceiveAudio: true,
           offerToReceiveVideo: callType === 'video'
-        });
-
+        };
+        
+        console.log('   Offer options:', offerOptions);
+        
+        const offer = await peerConnectionRef.current.createOffer(offerOptions);
         await peerConnectionRef.current.setLocalDescription(offer);
         console.log('📞 Local description set');
+        console.log('   SDP type:', offer.type);
+        console.log('   Has audio in SDP:', offer.sdp.includes('m=audio'));
+        console.log('   Has video in SDP:', offer.sdp.includes('m=video'));
 
         const generatedCallId = `${currentUser._id}-${receiverUser._id}-${Date.now()}`;
         setCallId(generatedCallId);
@@ -208,7 +250,6 @@ const CallModal = ({
 
     const handleCallAnswered = async (data) => {
       console.log('✅ Call answered by receiver');
-      console.log('   Received answer from:', data.from);
       
       if (data.answer && peerConnectionRef.current && !isCleanedUpRef.current) {
         try {
@@ -237,19 +278,17 @@ const CallModal = ({
       onClose();
     };
 
-    // ✅ FIXED: Simplified handleOffer - just store it, don't process
     const handleOffer = async (data) => {
       try {
         console.log('📞 Received WebRTC offer');
-        console.log('   Offer from:', data.from);
-        console.log('   Call status:', callStatus);
+        console.log('   Has audio in offer:', data.offer?.sdp?.includes('m=audio'));
+        console.log('   Has video in offer:', data.offer?.sdp?.includes('m=video'));
         
         if (!peerConnectionRef.current || isCleanedUpRef.current) {
           console.log('⚠️ Cannot process offer - no peer connection');
           return;
         }
 
-        // ✅ Just store the offer - handleAnswerCall will process it when user clicks Answer
         console.log('📦 Storing offer in pendingOfferRef');
         pendingOfferRef.current = data.offer;
         
@@ -260,7 +299,7 @@ const CallModal = ({
 
     const handleAnswer = async (data) => {
       try {
-        console.log('✅ Received WebRTC answer (via call:answer-signal)');
+        console.log('✅ Received WebRTC answer');
         
         if (peerConnectionRef.current && !isCleanedUpRef.current) {
           await peerConnectionRef.current.setRemoteDescription(
@@ -287,7 +326,6 @@ const CallModal = ({
       }
     };
 
-    // Register listeners
     socketService.onCallAnswered(handleCallAnswered);
     socketService.onCallRejected(handleCallRejected);
     socketService.onCallEnded(handleCallEnded);
@@ -300,54 +338,52 @@ const CallModal = ({
     };
   }, [callStatus, callId]);
 
-  // ✅ FIXED: Handle answering incoming call
   const handleAnswerCall = async () => {
     try {
       console.log('✅ Answering call');
-      console.log('   Peer connection state:', peerConnectionRef.current?.signalingState);
-      console.log('   incomingCallData:', incomingCallData);
-      console.log('   Caller ID (incomingCallData.from):', incomingCallData?.from);
-      console.log('   receiverUser:', receiverUser);
       
       if (!peerConnectionRef.current) {
         console.error('❌ No peer connection');
         return;
       }
 
-      if (isCleanedUpRef.current) {
-        console.log('⚠️ Already cleaned up');
-        return;
-      }
-
-      // Process the pending offer
-      if (pendingOfferRef.current) {
-        console.log('📦 Processing pending offer');
-        
-        await peerConnectionRef.current.setRemoteDescription(
-          new RTCSessionDescription(pendingOfferRef.current)
-        );
-        console.log('✅ Remote description set from pending offer');
-        
-        pendingOfferRef.current = null;
-      } else {
-        console.error('❌ No pending offer available!');
+      if (!pendingOfferRef.current) {
+        console.error('❌ No pending offer!');
         alert('No call offer received');
         return;
       }
 
-      // Create and send answer
-      const answer = await peerConnectionRef.current.createAnswer();
+      // Set remote description from offer
+      console.log('📦 Processing pending offer');
+      console.log('   Offer has audio:', pendingOfferRef.current.sdp.includes('m=audio'));
+      console.log('   Offer has video:', pendingOfferRef.current.sdp.includes('m=video'));
+      
+      await peerConnectionRef.current.setRemoteDescription(
+        new RTCSessionDescription(pendingOfferRef.current)
+      );
+      console.log('✅ Remote description set from pending offer');
+      
+      pendingOfferRef.current = null;
+
+      // ✅ FIX: Create answer with explicit options
+      const answerOptions = {
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: callType === 'video'
+      };
+      
+      console.log('📝 Creating answer with options:', answerOptions);
+      const answer = await peerConnectionRef.current.createAnswer(answerOptions);
+      
+      console.log('   Answer has audio:', answer.sdp.includes('m=audio'));
+      console.log('   Answer has video:', answer.sdp.includes('m=video'));
+      
       await peerConnectionRef.current.setLocalDescription(answer);
       console.log('✅ Answer created and local description set');
 
-      // ✅ CRITICAL FIX: Determine the caller ID with multiple fallbacks
       const callerUserId = callerIdRef.current || incomingCallData?.from || receiverUser?._id;
       
       if (!callerUserId) {
         console.error('❌ Cannot determine caller ID!');
-        console.error('   callerIdRef:', callerIdRef.current);
-        console.error('   incomingCallData:', incomingCallData);
-        console.error('   receiverUser:', receiverUser);
         alert('Cannot answer call - caller information missing');
         return;
       }
@@ -358,10 +394,10 @@ const CallModal = ({
         callId: callId || incomingCallData?.callId,
         answer,
         from: currentUser._id,
-        to: callerUserId  // ✅ Send to caller!
+        to: callerUserId
       });
 
-      console.log('✅ Answer sent to caller:', callerUserId);
+      console.log('✅ Answer sent to caller');
       setCallStatus('connected');
     } catch (error) {
       console.error('❌ Answer call error:', error);
@@ -374,16 +410,12 @@ const CallModal = ({
   const handleRejectCall = () => {
     console.log('❌ Rejecting call');
     
-    // ✅ FIX: Determine who to send the rejection to
     let targetUserId;
-    
     if (isIncoming && incomingCallData?.from) {
       targetUserId = incomingCallData.from;
     } else if (receiverUser?._id) {
       targetUserId = receiverUser._id;
     }
-    
-    console.log('   Sending rejection to:', targetUserId);
     
     if (targetUserId) {
       socketService.rejectCall({
@@ -397,36 +429,21 @@ const CallModal = ({
   };
 
   const handleEndCall = async () => {
-    // ✅ Prevent duplicate calls
     if (isCleanedUpRef.current) {
-      console.log('⚠️ Call already ended, skipping');
+      console.log('⚠️ Call already ended');
       return;
     }
     
     console.log('📴 Ending call');
-    console.log('   Current user:', currentUser._id);
-    console.log('   Is incoming?', isIncoming);
-    console.log('   Incoming data:', incomingCallData);
-    console.log('   Receiver user:', receiverUser);
-    console.log('   Stored caller ID:', callerIdRef.current);
-    
-    // ✅ Mark as cleaned up immediately to prevent duplicate calls
     isCleanedUpRef.current = true;
     
-    // ✅ FIX: Determine the other user correctly
     let otherUserId;
-    
     if (isIncoming) {
-      // For incoming calls, the other user is the caller
       otherUserId = callerIdRef.current || incomingCallData?.from;
     } else {
-      // For outgoing calls, the other user is the receiver
       otherUserId = receiverUser?._id;
     }
     
-    console.log('   Other user ID:', otherUserId);
-    
-    // Send end call signal
     if (otherUserId) {
       socketService.endCall({
         callId: callId || incomingCallData?.callId,
@@ -435,12 +452,8 @@ const CallModal = ({
       });
     }
 
-    // ✅ FIX: Only save call if we have the other user's ID
     if ((callStatus === 'connected' || callStatus === 'calling') && otherUserId) {
       try {
-        // ✅ Determine who is caller and who is receiver
-        // For incoming calls: the caller is the other user, receiver is currentUser
-        // For outgoing calls: the caller is currentUser, receiver is the other user
         const callData = {
           receiverId: isIncoming ? currentUser._id : otherUserId,
           callerId: isIncoming ? otherUserId : currentUser._id,
@@ -449,17 +462,11 @@ const CallModal = ({
           duration: callDuration
         };
         
-        console.log('💾 Saving call history:', callData);
         await saveCall(callData);
         console.log('✅ Call history saved');
       } catch (error) {
         console.error('❌ Failed to save call history:', error);
-        console.error('Error details:', error.response?.data || error.message);
       }
-    } else {
-      console.warn('⚠️ Cannot save call: missing otherUserId');
-      console.warn('   otherUserId:', otherUserId);
-      console.warn('   callStatus:', callStatus);
     }
 
     cleanup();
@@ -470,8 +477,9 @@ const CallModal = ({
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
-        audioTrack.enabled = isMuted;
-        setIsMuted(!isMuted);
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMuted(!audioTrack.enabled);
+        console.log('🎤 Audio track enabled:', audioTrack.enabled);
       }
     }
   };
@@ -480,8 +488,9 @@ const CallModal = ({
     if (localStreamRef.current && callType === 'video') {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
-        videoTrack.enabled = isVideoOff;
-        setIsVideoOff(!isVideoOff);
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoOff(!videoTrack.enabled);
+        console.log('📹 Video track enabled:', videoTrack.enabled);
       }
     }
   };
@@ -496,7 +505,6 @@ const CallModal = ({
 
     isCleanedUpRef.current = true;
 
-    // Stop all tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
         track.stop();
@@ -504,20 +512,16 @@ const CallModal = ({
       });
     }
     
-    // Close peer connection
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       console.log('🔌 Peer connection closed');
     }
     
-    // Stop timer
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
 
-    // Clear pending offer
     pendingOfferRef.current = null;
-
     socketService.stopAllSounds();
   };
 
@@ -565,7 +569,6 @@ const CallModal = ({
         {/* Video Display */}
         {callType === 'video' && (
           <div className="relative aspect-video bg-gray-900 rounded-xl overflow-hidden shadow-2xl">
-            {/* Remote video */}
             <video
               ref={remoteVideoRef}
               autoPlay
@@ -573,7 +576,6 @@ const CallModal = ({
               className="w-full h-full object-cover"
             />
             
-            {/* Placeholder */}
             {(!remoteVideoRef.current?.srcObject || callStatus !== 'connected') && (
               <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                 <div className="text-center">
@@ -585,7 +587,6 @@ const CallModal = ({
               </div>
             )}
             
-            {/* Local video PIP */}
             <div className="absolute bottom-4 right-4 w-32 h-24 bg-gray-900 rounded-lg overflow-hidden border-2 border-white shadow-lg">
               <video
                 ref={localVideoRef}
@@ -603,17 +604,27 @@ const CallModal = ({
           </div>
         )}
 
-        {/* Audio Call Display */}
+        {/* Audio Call Display - HIDDEN VIDEO ELEMENTS FOR AUDIO */}
         {callType === 'audio' && (
-          <div className="flex justify-center py-12">
-            <div className={`w-40 h-40 rounded-full flex items-center justify-center ${
-              callStatus === 'connected' 
-                ? 'bg-green-500 animate-pulse-slow' 
-                : 'bg-blue-500 animate-pulse'
-            }`}>
-              <Phone size={64} className="text-white" />
+          <>
+            {/* ✅ CRITICAL: Hidden audio element for remote stream */}
+            <audio
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              style={{ display: 'none' }}
+            />
+            
+            <div className="flex justify-center py-12">
+              <div className={`w-40 h-40 rounded-full flex items-center justify-center ${
+                callStatus === 'connected' 
+                  ? 'bg-green-500 animate-pulse-slow' 
+                  : 'bg-blue-500 animate-pulse'
+              }`}>
+                <Phone size={64} className="text-white" />
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Call Controls */}

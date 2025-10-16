@@ -26,7 +26,7 @@ const Home = () => {
     <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         {/* Left Sidebar - Chat Users */}
-        <Sidebar onChatSelect={handleChatSelect} />
+        {/* <Sidebar onChatSelect={handleChatSelect} /> */}
 
         {/* Middle Section - Feed, Chat, or Profile */}
         <div className="flex-1 flex flex-col">

@@ -1,3 +1,5 @@
+//frontend/src/components/common/Navbar.jsx
+
 import React, { useState } from 'react';
 import { Home, MessageCircle, User, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import Sidebar from '../chat/Sidebar';
@@ -45,12 +47,11 @@ const Navbar = ({ activeView, setActiveView, onSettingsClick }) => {
   return (
     <>
       {/* Mobile Chat Views - Only show when chat is active */}
-      {/* TEMPORARY: Shows on all screens for testing - ADD 'md:hidden' class back after testing */}
       {activeView === 'chat' && (
-        <>
+        <div className="md:hidden fixed inset-0 z-30">
           {/* Sidebar - slides out to left */}
           <div
-            className={`fixed inset-0 bg-white dark:bg-gray-800 z-40 transition-transform duration-300 ${
+            className={`absolute inset-0 bg-white dark:bg-gray-800 transition-transform duration-300 ${
               showMobileSidebar ? 'translate-x-0' : '-translate-x-full'
             }`}
           >
@@ -73,12 +74,11 @@ const Navbar = ({ activeView, setActiveView, onSettingsClick }) => {
             className={`fixed inset-0 bg-white dark:bg-gray-800 z-40 transition-transform duration-300 ${
               mobileSelectedChat ? 'translate-x-0' : 'translate-x-full'
             }`}
-            style={{ paddingBottom: '64px' }}
           >
             <ChatArea onBackClick={handleBackToSidebar} isMobile={true} />
             
             {/* Toggle Arrow Button - Shows when chat is visible */}
-            {mobileSelectedChat && (
+            {/* {mobileSelectedChat && (
               <button
                 onClick={toggleSidebar}
                 className="fixed left-4 top-1/2 -translate-y-1/2 z-50 p-3 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-all hover:scale-110"
@@ -86,14 +86,13 @@ const Navbar = ({ activeView, setActiveView, onSettingsClick }) => {
               >
                 <ChevronLeft size={24} />
               </button>
-            )}
+            )} */}
           </div>
-        </>
+        </div>
       )}
 
       {/* Bottom Navigation Bar */}
-      {/* TEMPORARY: Shows on all screens for testing - ADD 'md:hidden' class back after testing */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 md:hidden">
         <div className="flex justify-around items-center h-16 px-4">
           {navItems.map(({ id, icon: Icon, label, onClick }) => (
             <button
@@ -116,3 +115,4 @@ const Navbar = ({ activeView, setActiveView, onSettingsClick }) => {
 };
 
 export default Navbar;
+
