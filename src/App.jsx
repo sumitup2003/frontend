@@ -12,23 +12,24 @@ import LoadingSpinner from './components/common/LoadingSpinner';
 function App() {
   const { isAuthenticated, loading, checkAuth, user } = useAuthStore();
   const { initTheme } = useThemeStore();
-  
 
+  // Initialize theme and check authentication on app load
   useEffect(() => {
     initTheme();
     checkAuth();
   }, []);
 
+  // Connect socket when user is fully loaded
   useEffect(() => {
-    // Connect socket when user is authenticated
-    if (user) {
+    // Only connect if user is authenticated AND user data is loaded (has _id)
+    if (isAuthenticated && user && user._id) {
+      console.log('✅ Socket connecting for user:', user._id);
       socketService.connect(user._id);
-    }
-
-    return () => {
+    } else if (!isAuthenticated) {
+      console.log('❌ Socket disconnecting - user not authenticated');
       socketService.disconnect();
-    };
-  }, [user]);
+    }
+  }, [isAuthenticated, user]);
 
   if (loading) {
     return (
@@ -38,26 +39,32 @@ function App() {
     );
   }
 
-  {user && <CallManager />}
-
   return (
-    
-    <Routes>
-      
-      <Route
-        path="/login"
-        element={!isAuthenticated ? <Login /> : <Navigate to="/" />}
-      />
-      <Route
-        path="/register"
-        element={!isAuthenticated ? <Register /> : <Navigate to="/" />}
-      />
-      <Route
-        path="/"
-        element={isAuthenticated ? <Home /> : <Navigate to="/login" />}
-      />
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+    <div className="App">
+      {/* Global Call Manager - Only render when user is fully authenticated and loaded */}
+      {isAuthenticated && user && user._id && <CallManager />}
+
+      <Routes>
+        {/* Public Routes */}
+        <Route
+          path="/login"
+          element={!isAuthenticated ? <Login /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/register"
+          element={!isAuthenticated ? <Register /> : <Navigate to="/" />}
+        />
+
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={isAuthenticated ? <Home /> : <Navigate to="/login" />}
+        />
+
+        {/* Catch all - redirect to home */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </div>
   );
 }
 

@@ -1,62 +1,77 @@
 // frontend/src/utils/socket.js
 
-import io from 'socket.io-client';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
-
-
-
+import io from "socket.io-client";
 
 class SocketService {
   constructor() {
     this.socket = null;
     this.ringtone = null;
     this.callSound = null;
-    this.initAudio();
+    this.dialTone = null;
+    this.listeners = new Map();
   }
 
   initAudio() {
-    // Create audio elements for ringtones
-    this.ringtone = new Audio('/sounds/ringtone.mp3'); // Add this file to public/sounds/
+    this.ringtone = new Audio("/sounds/ringtone.mp3");
     this.ringtone.loop = true;
-    
-    this.callSound = new Audio('/sounds/call-start.mp3'); // Add this file
-    this.dialTone = new Audio('/sounds/dial-tone.mp3'); // Add this file
+
+    this.callSound = new Audio("/sounds/call-start.mp3");
+    this.dialTone = new Audio("/sounds/dial-tone.mp3");
     this.dialTone.loop = true;
   }
 
   connect(userId) {
-    if (this.socket?.connected) return;
+    console.log('🔌 Attempting to connect socket with userId:', userId);
+    
+    if (this.socket?.connected) {
+      console.log('⚠️ Socket already connected');
+      return;
+    }
 
-    this.socket = io(import.meta.env.SOCKET_URL || 'http://localhost:5000', {
-      auth: { userId },
-      transports: ['websocket', 'polling']
+    this.socket = io(
+      import.meta.env.VITE_SOCKET_URL || "http://localhost:5000",
+      {
+        auth: { userId },
+        transports: ["websocket", "polling"],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+      }
+    );
+
+    this.socket.on("connect", () => {
+      console.log("✅ Socket CONNECTED:", this.socket.id);
     });
 
-    this.socket.on('connect', () => {
-      console.log('✅ Socket connected:', this.socket.id);
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+    this.socket.on("disconnect", () => {
+      console.log("❌ Socket DISCONNECTED");
       this.stopAllSounds();
     });
 
-    this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
+    this.socket.on("error", (error) => {
+      console.error("🔴 Socket ERROR:", error);
     });
+
+    this.initAudio();
   }
 
   disconnect() {
     if (this.socket) {
+      console.log('🔌 Disconnecting socket');
+      this.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
     }
     this.stopAllSounds();
   }
 
-  // Sound control methods
   playRingtone() {
-    this.ringtone?.play().catch(err => console.log('Ringtone play error:', err));
+    console.log('🔔 Playing ringtone');
+    if (this.ringtone) {
+      this.ringtone.currentTime = 0;
+      this.ringtone.play().catch(err => console.log('Ringtone error:', err));
+    }
   }
 
   stopRingtone() {
@@ -67,7 +82,11 @@ class SocketService {
   }
 
   playDialTone() {
-    this.dialTone?.play().catch(err => console.log('Dial tone play error:', err));
+    console.log('📞 Playing dial tone');
+    if (this.dialTone) {
+      this.dialTone.currentTime = 0;
+      this.dialTone.play().catch(err => console.log('Dial tone error:', err));
+    }
   }
 
   stopDialTone() {
@@ -75,10 +94,6 @@ class SocketService {
       this.dialTone.pause();
       this.dialTone.currentTime = 0;
     }
-  }
-
-  playCallStart() {
-    this.callSound?.play().catch(err => console.log('Call sound play error:', err));
   }
 
   stopAllSounds() {
@@ -92,220 +107,370 @@ class SocketService {
 
   // ============ CALL EVENTS ============
 
-  // Initiate a call
   initiateCall(data) {
-    console.log('📞 Initiating call to:', data.to);
-    this.socket?.emit('call:initiate', data);
+    console.log("📞 INITIATING CALL - Emitting call:initiate to server");
+    console.log("Call data:", data);
+    this.socket?.emit("call:initiate", data);
     this.playDialTone();
   }
 
-  // Listen for incoming call
   onIncomingCall(callback) {
-    this.socket?.on('call:incoming', (data) => {
-      console.log('📞 Incoming call from:', data.from);
+    console.log('👂 LISTENING for incoming calls on call:incoming');
+    console.log('Socket connected?', this.socket?.connected);
+    console.log('Socket ID:', this.socket?.id);
+    
+    const handler = (data) => {
+      console.log('🎉🎉🎉 INCOMING CALL RECEIVED! 🎉🎉🎉');
+      console.log('Caller:', data.from);
+      console.log('Call ID:', data.callId);
+      console.log('Type:', data.type);
+      console.log('Full data:', data);
       this.playRingtone();
       callback(data);
-    });
+    };
+    
+    // IMPORTANT: Only remove if we're replacing with new handler
+    const existingHandler = this.listeners.get('call:incoming');
+    if (existingHandler) {
+      this.socket?.off('call:incoming', existingHandler);
+    }
+    
+    this.socket?.on('call:incoming', handler);
+    this.listeners.set('call:incoming', handler);
+    console.log('✅ Listener registered for call:incoming');
   }
 
-  // Answer a call
   answerCall(data) {
-    console.log('✅ Answering call');
+    console.log("✅ ANSWERING CALL");
     this.stopRingtone();
     this.playCallStart();
-    this.socket?.emit('call:answer', data);
+    this.socket?.emit("call:answer", data);
   }
 
-  // Listen for call answered
   onCallAnswered(callback) {
-    this.socket?.on('call:answered', (data) => {
-      console.log('✅ Call answered');
+    console.log('👂 LISTENING for call:answered');
+    
+    const handler = (data) => {
+      console.log('✅ CALL ANSWERED by receiver');
       this.stopDialTone();
       this.playCallStart();
       callback(data);
-    });
+    };
+    
+    const existingHandler = this.listeners.get('call:answered');
+    if (existingHandler) {
+      this.socket?.off('call:answered', existingHandler);
+    }
+    
+    this.socket?.on('call:answered', handler);
+    this.listeners.set('call:answered', handler);
   }
 
-  // Reject a call
   rejectCall(data) {
-    console.log('❌ Rejecting call');
+    console.log("❌ REJECTING CALL");
     this.stopRingtone();
-    this.socket?.emit('call:reject', data);
+    this.socket?.emit("call:reject", data);
   }
 
-  // Listen for call rejected
   onCallRejected(callback) {
-    this.socket?.on('call:rejected', (data) => {
-      console.log('❌ Call rejected');
+    console.log('👂 LISTENING for call:rejected');
+    
+    const handler = (data) => {
+      console.log('❌ CALL REJECTED');
       this.stopDialTone();
       callback(data);
-    });
+    };
+    
+    const existingHandler = this.listeners.get('call:rejected');
+    if (existingHandler) {
+      this.socket?.off('call:rejected', existingHandler);
+    }
+    
+    this.socket?.on('call:rejected', handler);
+    this.listeners.set('call:rejected', handler);
   }
 
-  // End call
   endCall(data) {
-    console.log('📴 Ending call');
+    console.log("📴 ENDING CALL");
     this.stopAllSounds();
-    this.socket?.emit('call:end', data);
+    this.socket?.emit("call:end", data);
   }
 
-  // Listen for call ended
   onCallEnded(callback) {
-    this.socket?.on('call:ended', (data) => {
-      console.log('📴 Call ended');
+    console.log('👂 LISTENING for call:ended');
+    
+    const handler = (data) => {
+      console.log('📴 CALL ENDED');
       this.stopAllSounds();
       callback(data);
-    });
+    };
+    
+    const existingHandler = this.listeners.get('call:ended');
+    if (existingHandler) {
+      this.socket?.off('call:ended', existingHandler);
+    }
+    
+    this.socket?.on('call:ended', handler);
+    this.listeners.set('call:ended', handler);
   }
 
-  // Listen for call missed (caller cancels before answer)
-  onCallMissed(callback) {
-    this.socket?.on('call:missed', (data) => {
-      console.log('📵 Call missed');
-      this.stopRingtone();
-      callback(data);
-    });
-  }
-
-  // Send WebRTC offer
   sendOffer(data) {
+    console.log('📨 Sending WebRTC offer');
     this.socket?.emit('call:offer', data);
   }
 
-  // Listen for WebRTC offer
   onOffer(callback) {
-    this.socket?.on('call:offer', callback);
+    console.log('👂 LISTENING for call:offer');
+    const handler = (data) => {
+      console.log('📨 Received WebRTC offer from:', data.from);
+      callback(data);
+    };
+    
+    const existingHandler = this.listeners.get('call:offer');
+    if (existingHandler) {
+      this.socket?.off('call:offer', existingHandler);
+    }
+    
+    this.socket?.on('call:offer', handler);
+    this.listeners.set('call:offer', handler);
   }
 
-  // Send WebRTC answer
   sendAnswer(data) {
+    console.log('📨 Sending WebRTC answer');
     this.socket?.emit('call:answer-signal', data);
   }
 
-  // Listen for WebRTC answer
   onAnswer(callback) {
-    this.socket?.on('call:answer-signal', callback);
+    console.log('👂 LISTENING for call:answer-signal');
+    const handler = (data) => {
+      console.log('📨 Received WebRTC answer from:', data.from);
+      callback(data);
+    };
+    
+    const existingHandler = this.listeners.get('call:answer-signal');
+    if (existingHandler) {
+      this.socket?.off('call:answer-signal', existingHandler);
+    }
+    
+    this.socket?.on('call:answer-signal', handler);
+    this.listeners.set('call:answer-signal', handler);
   }
 
-  // Send ICE candidate
   sendIceCandidate(data) {
     this.socket?.emit('call:ice-candidate', data);
   }
 
-  // Listen for ICE candidate
   onIceCandidate(callback) {
-    this.socket?.on('call:ice-candidate', callback);
+    const handler = (data) => {
+      console.log('❄️ Received ICE candidate');
+      callback(data);
+    };
+    
+    const existingHandler = this.listeners.get('call:ice-candidate');
+    if (existingHandler) {
+      this.socket?.off('call:ice-candidate', existingHandler);
+    }
+    
+    this.socket?.on('call:ice-candidate', handler);
+    this.listeners.set('call:ice-candidate', handler);
+  }
+
+  playCallStart() {
+    if (this.callSound) {
+      this.callSound.currentTime = 0;
+      this.callSound
+        .play()
+        .catch((err) => console.log("Call sound error:", err));
+    }
+  }
+
+  removeAllListeners() {
+    this.listeners.forEach((handler, event) => {
+      this.socket?.off(event, handler);
+    });
+    this.listeners.clear();
+  }
+
+  isConnected() {
+    return this.socket?.connected || false;
+  }
+
+  getSocketId() {
+    return this.socket?.id || null;
   }
 
   // ============ MESSAGE EVENTS ============
 
   sendMessage(data) {
+    console.log('💬 Sending message');
     this.socket?.emit('message:send', data);
   }
 
   onReceiveMessage(callback) {
-    this.socket?.on('message:receive', callback);
+    console.log('👂 LISTENING for message:receive');
+    const handler = (data) => {
+      console.log('💬 Received message:', data);
+      callback(data);
+    };
+    
+    const existingHandler = this.listeners.get('message:receive');
+    if (existingHandler) {
+      this.socket?.off('message:receive', existingHandler);
+    }
+    
+    this.socket?.on('message:receive', handler);
+    this.listeners.set('message:receive', handler);
   }
 
-  // Message read receipts
   markMessageAsRead(messageId) {
-    this.socket?.emit('message:read', messageId);
+    this.socket?.emit("message:read", messageId);
   }
 
   onMessageRead(callback) {
-    this.socket?.on('message:read', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('message:read');
+    if (existingHandler) {
+      this.socket?.off('message:read', existingHandler);
+    }
+    
+    this.socket?.on("message:read", handler);
+    this.listeners.set('message:read', handler);
   }
 
   emitTyping(userId) {
-    this.socket?.emit('typing:start', userId);
+    this.socket?.emit("typing:start", userId);
   }
 
   emitStopTyping(userId) {
-    this.socket?.emit('typing:stop', userId);
+    this.socket?.emit("typing:stop", userId);
   }
 
   onTyping(callback) {
-    this.socket?.on('user:typing', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('user:typing');
+    if (existingHandler) {
+      this.socket?.off('user:typing', existingHandler);
+    }
+    
+    this.socket?.on("user:typing", handler);
+    this.listeners.set('user:typing', handler);
   }
 
   onStopTyping(callback) {
-    this.socket?.on('user:stop-typing', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('user:stop-typing');
+    if (existingHandler) {
+      this.socket?.off('user:stop-typing', existingHandler);
+    }
+    
+    this.socket?.on("user:stop-typing", handler);
+    this.listeners.set('user:stop-typing', handler);
   }
 
   // ============ USER STATUS ============
 
   onUserOnline(callback) {
-    this.socket?.on('user:online', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('user:online');
+    if (existingHandler) {
+      this.socket?.off('user:online', existingHandler);
+    }
+    
+    this.socket?.on("user:online", handler);
+    this.listeners.set('user:online', handler);
   }
 
   onUserOffline(callback) {
-    this.socket?.on('user:offline', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('user:offline');
+    if (existingHandler) {
+      this.socket?.off('user:offline', existingHandler);
+    }
+    
+    this.socket?.on("user:offline", handler);
+    this.listeners.set('user:offline', handler);
   }
 
-  // Combined user status listener (for backward compatibility)
   onUserStatus(callback) {
-    this.socket?.on('user:online', (userId) => {
-      callback({ userId, status: 'online' });
+    this.onUserOnline((userId) => {
+      callback({ userId, status: "online" });
     });
-    this.socket?.on('user:offline', (userId) => {
-      callback({ userId, status: 'offline' });
+    this.onUserOffline((userId) => {
+      callback({ userId, status: "offline" });
     });
   }
 
   // ============ NOTIFICATIONS ============
 
   onNotification(callback) {
-    this.socket?.on('notification:new', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('notification:new');
+    if (existingHandler) {
+      this.socket?.off('notification:new', existingHandler);
+    }
+    
+    this.socket?.on("notification:new", handler);
+    this.listeners.set('notification:new', handler);
   }
 
   sendNotification(data) {
-    this.socket?.emit('notification:send', data);
+    this.socket?.emit("notification:send", data);
   }
 
   // ============ POST EVENTS ============
 
   onPostCreated(callback) {
-    this.socket?.on('post:created', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('post:created');
+    if (existingHandler) {
+      this.socket?.off('post:created', existingHandler);
+    }
+    
+    this.socket?.on("post:created", handler);
+    this.listeners.set('post:created', handler);
   }
 
   onPostDeleted(callback) {
-    this.socket?.on('post:deleted', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('post:deleted');
+    if (existingHandler) {
+      this.socket?.off('post:deleted', existingHandler);
+    }
+    
+    this.socket?.on("post:deleted", handler);
+    this.listeners.set('post:deleted', handler);
   }
 
   onPostLiked(callback) {
-    this.socket?.on('post:liked', callback);
+    const handler = callback;
+    
+    const existingHandler = this.listeners.get('post:liked');
+    if (existingHandler) {
+      this.socket?.off('post:liked', existingHandler);
+    }
+    
+    this.socket?.on("post:liked", handler);
+    this.listeners.set('post:liked', handler);
   }
 
   // ============ UTILITY METHODS ============
 
-  // Check if socket is connected
-  isConnected() {
-    return this.socket?.connected || false;
-  }
-
-  // Get socket ID
-  getSocketId() {
-    return this.socket?.id || null;
-  }
-
-  // Remove all listeners for cleanup
-  removeAllListeners() {
-    if (this.socket) {
-      this.socket.removeAllListeners();
-    }
-  }
-
-  // Remove specific listener
   off(event, callback) {
     this.socket?.off(event, callback);
   }
 
-  // Generic emit for custom events
   emit(event, data) {
     this.socket?.emit(event, data);
   }
 
-  // Generic listener for custom events
   on(event, callback) {
     this.socket?.on(event, callback);
   }

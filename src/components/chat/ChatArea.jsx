@@ -1,8 +1,6 @@
-
-//frontend/src/components/chat/chatArea.jsx
-
+// frontend/src/components/chat/ChatArea.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, X } from 'lucide-react';
+import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, X, ArrowLeft } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useAuthStore } from '../../store/authStore';
 import { useCallStore } from '../../store/callStore';
@@ -14,7 +12,7 @@ import { formatTime } from '../../utils/formatters';
 import VerifiedBadge from '../common/VerifiedBadge';
 import SharedPostPreview from './SharedPostPreview';
 
-const ChatArea = () => {
+const ChatArea = ({ onBackClick, isMobile = false }) => {
   const [messageInput, setMessageInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
@@ -54,13 +52,21 @@ const ChatArea = () => {
     scrollToBottom();
   }, [messages[selectedChat?._id]]);
 
+  // Setup message listener ONCE
   useEffect(() => {
-    socketService.onReceiveMessage((message) => {
-      if (message.senderId === selectedChat?._id) {
+    if (!selectedChat) return;
+
+    const handleMessage = (message) => {
+      console.log('💬 ChatArea received message:', message);
+      if (message.senderId === selectedChat._id) {
         addMessage(selectedChat._id, message);
       }
-    });
-  }, [selectedChat]);
+    };
+
+    socketService.onReceiveMessage(handleMessage);
+
+    // NO CLEANUP - listeners managed by socketService
+  }, [selectedChat?._id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -162,8 +168,6 @@ const ChatArea = () => {
     }
   };
 
-  
-
   const handleAudioCall = () => {
     setCallType('audio');
     setShowCallModal(true);
@@ -197,30 +201,39 @@ const ChatArea = () => {
   const isUserTyping = typingUsers.has(selectedChat._id);
 
   const parseMessage = (messageText) => {
-  try {
-    const parsed = JSON.parse(messageText);
-    if (parsed.type === 'shared_post') {
-      return {
-        isSharedPost: true,
-        sharer: parsed.sharer,
-        post: parsed.post
-      };
+    try {
+      const parsed = JSON.parse(messageText);
+      if (parsed.type === 'shared_post') {
+        return {
+          isSharedPost: true,
+          sharer: parsed.sharer,
+          post: parsed.post
+        };
+      }
+    } catch (e) {
+      // Not JSON, regular text message
     }
-  } catch (e) {
-    // Not JSON, regular text message
-  }
-  return {
-    isSharedPost: false,
-    text: messageText
+    return {
+      isSharedPost: false,
+      text: messageText
+    };
   };
-};
 
   return (
-    <div className="flex-1 flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex-1 flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* Chat Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
+            {isMobile && onBackClick && (
+              <button
+                onClick={onBackClick}
+                className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors md:hidden"
+              >
+                <ArrowLeft size={20} className="text-gray-600 dark:text-gray-400" />
+              </button>
+            )}
+            
             <Avatar
               src={selectedChat.avatar}
               alt={selectedChat.name}
@@ -273,7 +286,7 @@ const ChatArea = () => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900">
+      <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900" style={{ marginBottom: isMobile ? '140px' : '0' }}>
         <div className="max-w-4xl mx-auto space-y-3">
           {chatMessages.length === 0 ? (
             <div className="text-center py-8">
@@ -287,7 +300,6 @@ const ChatArea = () => {
                 message.sender?._id === user._id || message.sender === user._id;
               const parsedMessage = parseMessage(message.text);
 
-              // Handle media URLs for regular messages
               const mediaUrlMatch =
                 !parsedMessage.isSharedPost &&
                 message.text?.match(/📎\s*(https?:\/\/[^\s]+)/);
@@ -317,10 +329,8 @@ const ChatArea = () => {
                     isOwnMessage ? "justify-end" : "justify-start"
                   }`}
                 >
-                  {/* Shared Post Message */}
                   {parsedMessage.isSharedPost ? (
                     <div className="space-y-2 max-w-sm">
-                      {/* Sharer info */}
                       <div
                         className={`text-xs ${
                           isOwnMessage ? "text-right" : "text-left"
@@ -332,10 +342,8 @@ const ChatArea = () => {
                         </span>
                       </div>
 
-                      {/* Post Preview */}
                       <SharedPostPreview postData={parsedMessage.post} />
 
-                      {/* Timestamp */}
                       <div
                         className={`px-2 ${
                           isOwnMessage ? "text-right" : "text-left"
@@ -347,7 +355,6 @@ const ChatArea = () => {
                       </div>
                     </div>
                   ) : (
-                    /* Regular Message */
                     <div
                       className={`max-w-xs md:max-w-md rounded-2xl overflow-hidden ${
                         isOwnMessage
@@ -355,7 +362,6 @@ const ChatArea = () => {
                           : "bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700"
                       }`}
                     >
-                      {/* Media */}
                       {mediaUrl && (
                         <div className="w-full">
                           {isImage && (
@@ -378,7 +384,6 @@ const ChatArea = () => {
                         </div>
                       )}
 
-                      {/* Text */}
                       {textWithoutMedia && (
                         <div className="px-4 py-2">
                           <p className="break-words whitespace-pre-wrap">
@@ -387,7 +392,6 @@ const ChatArea = () => {
                         </div>
                       )}
 
-                      {/* Timestamp */}
                       <div
                         className={`px-4 pb-2 ${
                           textWithoutMedia || !mediaUrl ? "" : "pt-2"
@@ -433,7 +437,9 @@ const ChatArea = () => {
       </div>
 
       {/* Message Input */}
-      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+      <div className={`bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0 ${
+        isMobile ? 'fixed bottom-16 left-0 right-0 z-50' : ''
+      }`}>
         <div className="max-w-4xl mx-auto">
           {mediaPreview && (
             <div className="mb-3 relative inline-block">

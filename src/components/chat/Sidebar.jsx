@@ -1,3 +1,5 @@
+//frontend/src/components/chat/Sidebar.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Search, Phone } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';

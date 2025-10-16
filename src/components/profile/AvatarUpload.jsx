@@ -14,9 +14,9 @@ const AvatarUpload = ({ currentAvatar, userName, onUploadSuccess, onClose }) => 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file size (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('Image size must be less than 5MB');
+      // Check file size (20MB max)
+      if (file.size > 20 * 1024 * 1024) {
+        setError('Image size must be less than 20MB');
         return;
       }
 

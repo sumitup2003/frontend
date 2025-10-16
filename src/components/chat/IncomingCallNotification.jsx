@@ -1,3 +1,5 @@
+// frontend/src/components/chat/IncomingCallNotification.jsx
+
 import React, { useEffect } from 'react';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import Avatar from '../common/Avatar';
