@@ -126,10 +126,11 @@ const UserProfileModal = ({ user, onClose }) => {
           />
           
           <div className="flex items-center justify-center gap-2 mb-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">
               {user.name}
-            </h2>
-            {user.verified && <VerifiedBadge size={24} />}
+              
+            </p>
+            {user.verified && <VerifiedBadge size={12} />}
           </div>
           
           <p className="text-gray-500 dark:text-gray-400 mb-1">

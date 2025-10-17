@@ -85,8 +85,8 @@ const Feed = () => {
           </div>
 
           
-        {/* Stories Section */}
-      <StoriesSection />
+        {/* Stories Section
+      <StoriesSection /> */}
       
 
           {/* Create Post Button */}

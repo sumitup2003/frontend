@@ -11,6 +11,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import CallModal from './CallModal';
 import VerifiedBadge from '../common/VerifiedBadge';
 
+
 const Sidebar = ({ onChatSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
   // const [showCallModal, setShowCallModal] = useState(false);
@@ -56,6 +57,8 @@ const Sidebar = ({ onChatSelect }) => {
             DayTalk
           </h2>
         </div>
+
+        
 
         {/* Search */}
         <div className="relative">

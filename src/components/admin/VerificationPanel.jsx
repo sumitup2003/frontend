@@ -19,9 +19,27 @@ const VerificationPanel = ({ onBack }) => {
     setError('');
     
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`/api/verification/admin/requests?status=${filter}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      },
         credentials: 'include'
       });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', response.headers);
+
+      const contentType = response.headers.get("content-type");
+       if (!contentType || !contentType.includes("application/json")) {
+         const text = await response.text();
+         console.error("❌ Non-JSON response:", text);
+         throw new Error(
+           "Server returned non-JSON response. Check server logs."
+         );
+       }
 
       const data = await response.json();
 

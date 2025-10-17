@@ -8,6 +8,7 @@ import Feed from '../components/feed/Feed';
 import ChatArea from '../components/chat/ChatArea';
 import ProfileSidebar from '../components/profile/ProfileSidebar';
 import Settings from '../components/common/Settings';
+import StoriesSection from '../components/feed/StoriesSection';
 
 const Home = () => {
   const [activeView, setActiveView] = useState('feed'); // 'feed', 'chat', 'profile'
@@ -38,6 +39,7 @@ const Home = () => {
                 <ProfileSidebar isFullView={true} />
               </div>
             )}
+            {activeView === 'stories' && <StoriesSection />}
           </div>
         </div>
 

@@ -1,9 +1,11 @@
 //frontend/src/components/common/Navbar.jsx
 
 import React, { useState } from 'react';
-import { Home, MessageCircle, User, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, MessageCircle, User, Settings, ChevronLeft, ChevronRight, CircleDotDashed  } from 'lucide-react';
 import Sidebar from '../chat/Sidebar';
 import ChatArea from '../chat/ChatArea';
+import StoriesSection from '../feed/StoriesSection';
+
 
 const Navbar = ({ activeView, setActiveView, onSettingsClick }) => {
   const [showMobileSidebar, setShowMobileSidebar] = useState(true);
@@ -12,8 +14,10 @@ const Navbar = ({ activeView, setActiveView, onSettingsClick }) => {
   const navItems = [
     { id: 'feed', icon: Home, label: 'Feed' },
     { id: 'chat', icon: MessageCircle, label: 'Messages' },
+    { id: 'stories', icon: CircleDotDashed, label: 'stories' },
     { id: 'profile', icon: User, label: 'Profile' },
     { id: 'settings', icon: Settings, label: 'Settings', onClick: onSettingsClick }
+    
   ];
 
   const handleNavClick = (id, onClick) => {

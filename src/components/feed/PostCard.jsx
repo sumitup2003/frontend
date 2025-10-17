@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Bookmark, MoreVertical, Trash2, Share2, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreVertical, Trash2, Share2, EyeOff, AlertCircle, CheckCircle, BadgeCheck } from 'lucide-react';
 import { usePostStore } from '../../store/postStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
@@ -62,18 +62,17 @@ const PostCard = ({ post }) => {
             onClick={handleUserClick}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
           >
-            <Avatar
-              src={post.user.avatar}
-              alt={post.user.name}
-              size="md"
-            />
+            <Avatar src={post.user.avatar} alt={post.user.name} size="md" />
             <div className="text-left">
               <div className="flex items-center gap-1">
                 <p className="font-semibold text-gray-900 dark:text-white">
                   {post.user.name}
                 </p>
                 {post.user.verified && (
-                  <CheckCircle size={16} className="text-gray-100 fill-green-700" />
+                  <BadgeCheck
+                    size={12}
+                    className="text-gray-100 fill-yellow-300"
+                  />
                 )}
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -87,7 +86,10 @@ const PostCard = ({ post }) => {
               onClick={() => setShowMenu(!showMenu)}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              <MoreVertical size={20} className="text-gray-600 dark:text-gray-400" />
+              <MoreVertical
+                size={20}
+                className="text-gray-600 dark:text-gray-400"
+              />
             </button>
 
             {showMenu && (
@@ -158,7 +160,11 @@ const PostCard = ({ post }) => {
           >
             <Heart
               size={20}
-              className={post.isLiked ? 'fill-red-500 text-red-500' : 'text-gray-600 dark:text-gray-400 group-hover:text-red-500'}
+              className={
+                post.isLiked
+                  ? "fill-red-500 text-red-500"
+                  : "text-gray-600 dark:text-gray-400 group-hover:text-red-500"
+              }
             />
             <span className="text-gray-600 dark:text-gray-400">
               {post.likesCount || 0}
@@ -169,7 +175,10 @@ const PostCard = ({ post }) => {
             onClick={() => setShowComments(!showComments)}
             className="flex items-center gap-2 hover:text-blue-500 transition-colors group"
           >
-            <MessageCircle size={20} className="text-gray-600 dark:text-gray-400 group-hover:text-blue-500" />
+            <MessageCircle
+              size={20}
+              className="text-gray-600 dark:text-gray-400 group-hover:text-blue-500"
+            />
             <span className="text-gray-600 dark:text-gray-400">
               {post.commentsCount || 0}
             </span>
@@ -179,7 +188,10 @@ const PostCard = ({ post }) => {
             onClick={() => setShowShareModal(true)}
             className="flex items-center gap-2 hover:text-green-500 transition-colors group"
           >
-            <Share2 size={20} className="text-gray-600 dark:text-gray-400 group-hover:text-green-500" />
+            <Share2
+              size={20}
+              className="text-gray-600 dark:text-gray-400 group-hover:text-green-500"
+            />
           </button>
 
           <button
@@ -188,7 +200,11 @@ const PostCard = ({ post }) => {
           >
             <Bookmark
               size={20}
-              className={post.isSaved ? 'fill-blue-500 text-blue-500' : 'text-gray-600 dark:text-gray-400'}
+              className={
+                post.isSaved
+                  ? "fill-blue-500 text-blue-500"
+                  : "text-gray-600 dark:text-gray-400"
+              }
             />
           </button>
         </div>
@@ -199,17 +215,25 @@ const PostCard = ({ post }) => {
             <div className="space-y-3 mb-3 max-h-60 overflow-y-auto">
               {post.comments?.map((comment) => (
                 <div key={comment._id} className="flex gap-2">
-                  <Avatar src={comment.user.avatar} alt={comment.user.name} size="sm" />
+                  <Avatar
+                    src={comment.user.avatar}
+                    alt={comment.user.name}
+                    size="sm"
+                  />
                   <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
+                    
                     <p className="font-semibold text-sm text-gray-900 dark:text-white">
                       {comment.user.name}
-                      {post.user.verified && (
-                        <CheckCircle size={16} className="text-gray-100 fill-green-700" />)}
+                      {comment.user.verified && (
+                        <BadgeCheck
+                          size={12}
+                          className="text-gray-100 fill-yellow-300"
+                        />
+                      )}
                     </p>
-                   
+
                     <p className="text-sm text-gray-700 dark:text-gray-300">
                       {comment.text}
-                    
                     </p>
                   </div>
                 </div>
@@ -222,7 +246,7 @@ const PostCard = ({ post }) => {
                 type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleComment()}
+                onKeyPress={(e) => e.key === "Enter" && handleComment()}
                 placeholder="Add a comment..."
                 className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-full text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -240,10 +264,7 @@ const PostCard = ({ post }) => {
 
       {/* Share Modal */}
       {showShareModal && (
-        <ShareModal
-          post={post}
-          onClose={() => setShowShareModal(false)}
-        />
+        <ShareModal post={post} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   );

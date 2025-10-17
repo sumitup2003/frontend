@@ -104,17 +104,18 @@ const ProfileSidebar = ({ isFullView = false }) => {
                   onClick={() => setShowAvatarUpload(true)}
                   className="absolute bottom-0 right-0 p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-colors shadow-lg"
                 >
-                  <Camera size={20} />
+                  <Camera size={10} />
                 </button>
               )}
             </div>
 
             {/* User Info */}
             <div className="flex-1 text-center md:text-left">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <p className="text-2xl font-bold text-gray-900 dark:text-white mb-2 ">
                 {displayUser?.name}
-              </h1>
-              {user.verified && <VerifiedBadge size={16} />}
+                {user.verified && <VerifiedBadge size={12} />}
+              </p>
+              
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 @{displayUser?.username}
               </p>

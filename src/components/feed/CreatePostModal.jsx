@@ -80,13 +80,15 @@ const CreatePostModal = ({ onClose }) => {
   const isVideo = mediaFile?.type?.startsWith('video/');
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Create Post" size="md">
-      <div className="space-y-4">
+    <Modal isOpen={true} onClose={onClose} title="Create Post" size="sm">
+      <div className="space-y-3">
         {/* User Info */}
-        <div className="flex items-center gap-3">
-          <Avatar src={user.avatar} alt={user.name} size="md" />
+        <div className="flex items-center gap-2">
+          <Avatar src={user.avatar} alt={user.name} size="sm" />
           <div>
-            <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
+            <p className="font-semibold text-gray-900 dark:text-white">
+              {user.name}
+            </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Public</p>
           </div>
         </div>
@@ -99,27 +101,34 @@ const CreatePostModal = ({ onClose }) => {
           </div>
         )}
 
+        {/* Submit Button */}
+        <Button
+          variant="primary"
+          fullWidth
+          onClick={handleSubmit}
+          loading={loading}
+          disabled={(!content.trim() && !mediaFile) || loading}
+        >
+          {loading ? "Posting..." : "Post"}
+        </Button>
+
         {/* Content Input */}
         <textarea
           value={content}
           onChange={(e) => {
             setContent(e.target.value);
-            setError('');
+            setError("");
           }}
           placeholder="What's on your mind?"
           className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          rows={6}
+          rows={3}
         />
 
         {/* Media Preview */}
         {mediaPreview && (
           <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
             {isVideo ? (
-              <video
-                src={mediaPreview}
-                controls
-                className="w-full max-h-96"
-              />
+              <video src={mediaPreview} controls className="w-full max-h-96" />
             ) : (
               <img
                 src={mediaPreview}
@@ -136,14 +145,27 @@ const CreatePostModal = ({ onClose }) => {
           </div>
         )}
 
-        {/* File Input (Hidden) */}
+        {/* File Input (Hidden)
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*,video/*,pdf/*,txt/*"
           onChange={handleFileSelect}
           className="hidden"
-        />
+        /> */}
+
+      
+          
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,pdf/*,txt/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        
 
         {/* Media Buttons */}
         {!mediaFile && (
@@ -152,16 +174,23 @@ const CreatePostModal = ({ onClose }) => {
               onClick={() => fileInputRef.current?.click()}
               className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
             >
-              <ImageIcon size={20} className="text-gray-600 dark:text-gray-400" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Add Photo</span>
+              <ImageIcon
+                size={20}
+                className="text-gray-600 dark:text-gray-400"
+              />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Add Photo
+              </span>
             </button>
-            
+
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
             >
               <Video size={20} className="text-gray-600 dark:text-gray-400" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Add Video</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Add Video
+              </span>
             </button>
           </div>
         )}
@@ -169,22 +198,20 @@ const CreatePostModal = ({ onClose }) => {
         {/* File Info */}
         {mediaFile && (
           <div className="text-sm text-gray-600 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p><strong>File:</strong> {mediaFile.name}</p>
-            <p><strong>Size:</strong> {(mediaFile.size / 1024 / 1024).toFixed(2)} MB</p>
-            <p><strong>Type:</strong> {mediaFile.type}</p>
+            <p>
+              <strong>File:</strong> {mediaFile.name}
+            </p>
+            <p>
+              <strong>Size:</strong> {(mediaFile.size / 1024 / 1024).toFixed(2)}{" "}
+              MB
+            </p>
+            <p>
+              <strong>Type:</strong> {mediaFile.type}
+            </p>
           </div>
         )}
 
-        {/* Submit Button */}
-        <Button
-          variant="primary"
-          fullWidth
-          onClick={handleSubmit}
-          loading={loading}
-          disabled={(!content.trim() && !mediaFile) || loading}
-        >
-          {loading ? 'Posting...' : 'Post'}
-        </Button>
+       
       </div>
     </Modal>
   );
