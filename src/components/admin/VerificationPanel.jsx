@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, User, Calendar, AlertCircle } from 'lucide-react';
 import Button from '../common/Button';
 
+// ✅ API Base URL - works in both development and production
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const VerificationPanel = ({ onBack }) => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState('pending'); // pending, approved, rejected, all
+  const [filter, setFilter] = useState('pending');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -19,44 +22,40 @@ const VerificationPanel = ({ onBack }) => {
     setError('');
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/verification/admin/requests?status=${filter}`, {
+      const url = `${API_BASE_URL}/verification/admin/requests?status=${filter}`;
+      console.log('📡 Fetching from:', url);
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
-      },
+        },
         credentials: 'include'
       });
 
       console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', response.headers);
 
       const contentType = response.headers.get("content-type");
-       if (!contentType || !contentType.includes("application/json")) {
-         const text = await response.text();
-         console.error("❌ Non-JSON response:", text);
-         throw new Error(
-           "Server returned non-JSON response. Check server logs."
-         );
-       }
-
-      const data = await response.json();
-
-      console.log('📥 API Response:', data); // DEBUG
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch requests');
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("❌ Non-JSON response:", text.substring(0, 200));
+        throw new Error("Server returned non-JSON response. Please check your backend URL.");
       }
 
-      // Handle both data.data and direct data array
+      const data = await response.json();
+      console.log('📥 API Response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}: Failed to fetch requests`);
+      }
+
       const requestsData = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
-      console.log('📋 Processed Requests:', requestsData); // DEBUG
+      console.log('📋 Processed Requests:', requestsData);
       
       setRequests(requestsData);
     } catch (err) {
       console.error('❌ Error fetching requests:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to load verification requests');
     } finally {
       setLoading(false);
     }
@@ -71,7 +70,10 @@ const VerificationPanel = ({ onBack }) => {
     setError('');
 
     try {
-      const response = await fetch(`/api/verification/admin/review/${requestId}`, {
+      const url = `${API_BASE_URL}/verification/admin/review/${requestId}`;
+      console.log('📡 Posting to:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +88,6 @@ const VerificationPanel = ({ onBack }) => {
         throw new Error(data.message || 'Failed to process request');
       }
 
-      // Refresh the list
       await fetchRequests();
       setSelectedRequest(null);
     } catch (err) {
@@ -301,13 +302,10 @@ const VerificationPanel = ({ onBack }) => {
       ) : (
         <div className="space-y-3">
           {requests.map((request) => {
-            // Handle different possible data structures
             const verificationReq = request.verificationRequest || {};
             const userName = request.name || request.user?.name || 'Unknown User';
             const userUsername = request.username || request.user?.username || 'unknown';
             const userAvatar = request.avatar || request.user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default';
-            
-            console.log('🔍 Request item:', request); // DEBUG
             
             return (
               <div

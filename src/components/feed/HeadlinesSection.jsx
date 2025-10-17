@@ -11,10 +11,16 @@ const HeadlinesSection = () => {
     setError(null);
     
     try {
-      // Using NewsAPI - Get your free API key from https://newsapi.org
-      // For demo, using top headlines from various sources
+      const token = localStorage.getItem('token');
+      
+      // Fetch from your backend API
       const response = await fetch(
-        `https://newsapi.org/v2/top-headlines?country=us&pageSize=10&apiKey=df1b6b3f4454461bb74847a8c739e388`
+        `${import.meta.env.VITE_API_URL}/news/headlines?country=us&pageSize=10`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
       
       if (!response.ok) {
@@ -22,35 +28,10 @@ const HeadlinesSection = () => {
       }
       
       const data = await response.json();
-      setHeadlines(data.articles || []);
+      setHeadlines(data.data || []);
     } catch (err) {
       console.error('Error fetching headlines:', err);
       setError('Failed to load headlines');
-      
-      // Fallback mock data for demonstration
-      setHeadlines([
-        {
-          title: "Global Markets React to Economic News",
-          source: { name: "Financial Times" },
-          url: "https://example.com",
-          urlToImage: "https://via.placeholder.com/400x200",
-          publishedAt: new Date().toISOString()
-        },
-        {
-          title: "Technology Giants Announce New AI Features",
-          source: { name: "Tech News" },
-          url: "https://example.com",
-          urlToImage: "https://via.placeholder.com/400x200",
-          publishedAt: new Date().toISOString()
-        },
-        {
-          title: "Climate Summit Reaches Historic Agreement",
-          source: { name: "World News" },
-          url: "https://example.com",
-          urlToImage: "https://via.placeholder.com/400x200",
-          publishedAt: new Date().toISOString()
-        }
-      ]);
     } finally {
       setLoading(false);
     }
@@ -78,7 +59,7 @@ const HeadlinesSection = () => {
         <div className="flex items-center gap-2">
           <Newspaper className="text-blue-500" size={24} />
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Headlines
+            Latest Headlines
           </h2>
         </div>
         <button
@@ -149,6 +130,11 @@ const HeadlinesSection = () => {
                   <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
                     {article.title}
                   </h3>
+                  {article.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1 mt-1">
+                      {article.description}
+                    </p>
+                  )}
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
                       {article.source.name}

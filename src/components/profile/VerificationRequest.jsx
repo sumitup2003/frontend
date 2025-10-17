@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { CheckCircle, AlertCircle, Upload, X } from 'lucide-react';
+import { CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../common/Button';
 import Input from '../common/Input';
+
+// ✅ API Base URL - works in both development and production
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const VerificationRequest = ({ onBack, user }) => {
   const [formData, setFormData] = useState({
@@ -44,7 +47,10 @@ const VerificationRequest = ({ onBack, user }) => {
     setError('');
     
     try {
-      const response = await fetch('/api/verification/request', {
+      const url = `${API_BASE_URL}/verification/request`;
+      console.log('📡 Submitting to:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,6 +70,7 @@ const VerificationRequest = ({ onBack, user }) => {
         onBack();
       }, 2000);
     } catch (err) {
+      console.error('❌ Submit error:', err);
       setError(err.message);
     } finally {
       setLoading(false);

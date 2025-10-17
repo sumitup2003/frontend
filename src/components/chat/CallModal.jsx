@@ -1,4 +1,3 @@
-// frontend/src/components/chat/CallModal.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Video, VideoOff, User, BadgeCheck } from 'lucide-react';
 import Modal from '../common/Modal';
@@ -538,12 +537,12 @@ const CallModal = ({
         {/* Audio Call Display */}
         {callType === 'audio' && (
           <div className="flex justify-center py-12">
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center ${
+            <div className={`w-40 h-40 rounded-full flex items-center justify-center ${
               callStatus === 'connected' 
                 ? 'bg-green-500 animate-pulse-slow' 
                 : 'bg-blue-500 animate-pulse'
             }`}>
-              <Phone size={34} className="text-white" />
+              <Phone size={64} className="text-white" />
             </div>
           </div>
         )}
