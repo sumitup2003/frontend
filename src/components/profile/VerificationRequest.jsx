@@ -3,7 +3,6 @@ import { CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '../common/Button';
 import Input from '../common/Input';
 
-// ✅ API Base URL - works in both development and production
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const VerificationRequest = ({ onBack, user }) => {
@@ -47,17 +46,28 @@ const VerificationRequest = ({ onBack, user }) => {
     setError('');
     
     try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+
       const url = `${API_BASE_URL}/verification/request`;
       console.log('📡 Submitting to:', url);
+      console.log('🔑 Using token:', token ? 'Token present' : 'No token');
       
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // ✅ Add Bearer token
         },
         credentials: 'include',
         body: JSON.stringify(formData)
       });
+
+      console.log('📥 Response status:', response.status);
 
       const data = await response.json();
 
@@ -96,15 +106,16 @@ const VerificationRequest = ({ onBack, user }) => {
 
   return (
     <div className="space-y-4">
-      <button
+      
+
+      <div className="mb-6">
+        <button
         onClick={onBack}
         className="text-blue-600 dark:text-blue-400 text-sm hover:underline mb-4"
       >
         ← Back
       </button>
-
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-semibold text-yellow-400 dark:text-yellow-400 mb-2">
           Get Verified
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -160,21 +171,21 @@ const VerificationRequest = ({ onBack, user }) => {
             onChange={handleChange}
             placeholder="Explain why you should be verified (e.g., public figure, content creator, professional)"
             required
-            rows={4}
+            rows={2}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white resize-none"
           />
         </div>
 
-        <Input
+        {/* <Input
           label="Social Media Links (Optional)"
           name="socialLinks"
           value={formData.socialLinks}
           onChange={handleChange}
           placeholder="Twitter, Instagram, LinkedIn, etc."
-        />
+        /> */}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          {/* <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Additional Information (Optional)
           </label>
           <textarea
@@ -184,10 +195,10 @@ const VerificationRequest = ({ onBack, user }) => {
             placeholder="Any other information that might help with your verification"
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white resize-none"
-          />
+          /> */}
         </div>
 
-        <div className="pt-4">
+        <div className="pt-1">
           <Button
             type="submit"
             variant="primary"
